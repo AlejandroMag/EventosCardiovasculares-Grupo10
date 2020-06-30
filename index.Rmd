@@ -31,6 +31,7 @@ En la siguiente presentación, se analizará tanto gráficamente como analítica
 
 ```{r datosGenerales, include=FALSE}
 library(readr)
+dataset <- read_csv("D:/AUSTRAL/2do/AYED/dataset.csv")
 dataset<-as.data.frame(dataset)
 eventos <- sum(dataset$Evento)
 mujeres <- (1002 - sum(dataset$Género))
