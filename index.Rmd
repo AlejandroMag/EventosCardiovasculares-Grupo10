@@ -1,0 +1,324 @@
+---
+title: "Análisis De Eventos Cardiovasculares"
+author: "Alejandro Maglio - Alberto Pizzi - Nicolás Werner"
+date: "11/06/2020"
+output: 
+  rmdformats::material:
+    highlight: kate
+
+---
+
+```{r setup, echo=FALSE, cache=FALSE}
+library(knitr)
+library(rmdformats)
+
+## Global options
+options(max.print="75")
+opts_chunk$set(echo=FALSE,
+	             cache=TRUE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
+opts_knit$set(width=75)
+```
+
+# Introducción{- .unnumbered}
+
+En la siguiente presentación, se analizará tanto gráficamente como analíticamente ciertos datos de personas con riesgo a padecer eventos cardiovasculares. Estos datos fueron provistos por el Hospital Austral, en base a 1002 casos en los cuales el paciente se presentó en el hospital con síntomas asociados a un evento cardiovascular, pero que no necesariamente haya, posteriormente, sufrido un evento. Con estos datos se busca poder mostrar que características son determinantes para saber si el paciente debe ser internado de urgencia o no.
+
+
+```{r datosGenerales, include=FALSE}
+library(readr)
+dataset<-as.data.frame(dataset)
+eventos <- sum(dataset$Evento)
+mujeres <- (1002 - sum(dataset$Género))
+hombres <- sum(dataset$Género)
+antecedentesFamiliares <- sum(dataset$AHF)
+cantEpisodios <- sum(dataset$CantE)
+fumadores <- sum(dataset$TBQ)
+presentaHipertension <- sum(dataset$HTA)
+obeso <- sum(dataset$OBES)
+revascularizacion <- sum(dataset$SCApHR)
+
+#edades <- dataset[dataset$Edad]
+edad1740 <- c(dataset[which(dataset$Edad < 40 & dataset$Edad >= 16),"Evento" ])
+edad1760 <- c(dataset[which(dataset$Edad < 60 & dataset$Edad >= 16),"Evento" ])
+edad4060 <- c(dataset[which(dataset$Edad < 60 & dataset$Edad >= 40), "Evento" ])
+edad60plus <- c(dataset[which(dataset$Edad >= 60), "Evento"])
+
+
+dolor1OrMinor <- sum(table(which(dataset$DD == -1)))
+dolor1to20 <- sum(table(which(dataset$DD == 1)))
+dolor20plus <- sum(table(which(dataset$DD == 0)))
+
+#Parte 1
+
+pCEyAF <- antecedentesFamiliares / cantEpisodios
+pHIPyAF <- antecedentesFamiliares / presentaHipertension
+
+#Parte 2
+
+aHIP <- c(which(dataset$HTA > 0))
+aHIP
+ageRange <- c(dataset[aHIP, 3])
+ageRange
+promEdadyHip <- mean(ageRange, na.rm = FALSE)
+
+#Parte 4
+
+pCEyFumadores <- fumadores / cantEpisodios
+
+# Prob. Hipertensos y fuman
+hipYfum <- c(dataset[aHIP, "TBQ"])
+pHIPyTBQ <- sum(hipYfum) / presentaHipertension
+
+# Revascularizacion y Dolores
+revYdolor <- c(dataset[which(dataset$DD == 0), "SCApHR"])
+pSCApHRyDD20plus <- sum(revYdolor) / dolor20plus
+
+revYdolorA20 <- c(dataset[which(dataset$DD == 1), "SCApHR"])
+pSCApHRyDD20minus <- sum(revYdolorA20) / dolor1to20
+
+#Mayores 60 con Hiper
+mas60Yhip <- c(dataset[which(dataset$Edad >= 60), "HTA"])
+p60PlusYHTA <- sum(mas60Yhip) / edad60plus 
+
+#Menos 60 y Antecedentes
+menos60YAnt <- c(dataset[which(dataset$Edad < 60), "AHF"])
+p60menosYAnt <- sum(menos60YAnt) / edad1760
+
+#Dolor y ubicacion de este
+dolorYubic <- c(dataset[which(dataset$CD != 0), "UD"])
+
+```
+
+# Visualización De Los Datos{- .unnumbered}
+A continuación, se mostrarán los tipos de datos que se eligieron.
+
+```{r grafT1, include= TRUE, echo= FALSE}
+y <- c(mean(dataset$Evento=="1"), mean(dataset$Evento=="1" & dataset$SA=="1"),
+       mean(dataset$Evento=="1" & dataset$SCApHR), mean(dataset$Evento=="1" & dataset$HTA=="1"),mean(dataset$Evento=="1" & dataset$DBT=="1"), mean(dataset$Evento=="1" & dataset$TBQ=="1"),mean(dataset$Evento=="1" & dataset$AHF=="1"))
+
+x <- c("Eventos","Tiene Sindrome Anginoso","Tiene Hist.Revazcularizacion","Tiene Hipertension","Tiene Diabetes","Fuma tabaco","Tiene Historia Familiar")
+
+library(ggplot2)
+data <- data.frame(x,y)
+ggplot(data, aes(x=x, y=y)) +
+  geom_point(color = "lightblue", size = 5, fill = alpha("skyblue", 0.3),
+             alpha = 0.7, shape = 21, stroke = 2) + 
+  geom_segment( aes(x=x, xend=x, y=0, yend=y), color = "lightblue", size = 1, linetype = "dotdash") +
+  theme_dark() +
+  coord_flip() +
+  xlab("") +
+  ylab("") +
+  ggtitle("")
+
+
+
+```
+
+## Análisis de Pacientes por Presencia de Eventos  {.tabset .tabset-fade .tabset-pills .un}
+
+A continuación, vamos a observar el porcentaje de personas que padecen eventos y como afecta la edad este porcentaje
+
+### Eventos Cardíacos Totales {- .un}
+Este gráfico muestra la cantidad de personas que padecieron eventos cardiovasculares y el porcentaje de personas que no han padecido eventos.
+
+```{r porcentajeEventos, include=TRUE, echo=FALSE}
+library(plotrix)
+eventosSuma <- round((eventos / 1002) * 100)
+sinEventoSuma <- round(100 - eventosSuma)
+EvCard3D <- pie3D(c(eventosSuma,sinEventoSuma),radius = 0.9,main = "Porcentaje de Eventos Cardíacos", labels = c(paste(eventosSuma,"%"),paste(sinEventoSuma,"%")),col = c("red","lightblue"),labelcex = 1.0, explode = 0.2, theta = 1, mar = c(5,5,5,5))
+legend(.1,1.1,c("Con Evento Cardíaco","Sin Evento Cardíaco"),fill = c("red","lightblue"))
+
+
+PacientesSinEventos <-sum(dataset$Evento==0)
+PacientesConEventos <- sum(dataset$Evento==1)
+cbind(PacientesConEventos,PacientesSinEventos)
+```
+
+### Eventos Analizados Por Edad {- .un}
+En este gráfico está representado las diferentes edades de las personas que sufrieron algún evento.
+
+```{r graficoEdades, include=TRUE, echo=FALSE}
+dd <- dataset[which(dataset$Evento==1), "Edad"]
+library(plotly)
+plot_ly(alpha = 0.6,  marker = list(color = 'red'), line = list(color = "white", width = 2)) %>%
+  add_histogram(dd) %>%
+  layout(barmode = "overlay", title = "Eventos Por edad", xaxis=list(title="Edad"))
+```
+
+### Análisis De Edad Por 3 Grupos{- .un}
+
+```{r graficoEdadesDatos, include=FALSE, echo=FALSE}
+y <- c(mean(edad1740 &dataset$Evento==1 ),mean(edad4060 &dataset$Evento==1),
+       mean(edad60plus &dataset$Evento==1))
+
+x <- c("-40","40-60","60+")
+data <- data.frame(x,y)
+```
+```{r graficoEdadesGRUPOS, include=TRUE, echo=FALSE}
+library(ggplot2)
+ggplot(data, aes(x=x, y=y)) +
+  geom_point(color = "blue", size = 5, fill = alpha("skyblue", 0.3),
+             alpha = 0.7, shape = 21, stroke = 2) + 
+  geom_segment( aes(x=x, xend=x, y=0, yend=y), color = "skyblue", size = 1, linetype = "dotdash") +
+  theme_bw() +
+  coord_flip() +
+  xlab("Edades") +
+  ylab("Cantidad De Casos Con Eventos") +
+  ggtitle("Analisis De Edad")
+```
+
+## Analisis de presencia de Eventos por el factor de Obesidad {.tabset .tabset-fade .tabset-pills}
+Ahora vamos a observar cómo influye la obesidad al respecto de la cantidad de eventos, analizando la diabetes y la obesidad.
+
+### Obesos {- .unnumbered}
+En este gráfico puede verse representado el porcentaje de personas que padecen obesidad y que sufrieron algún evento cardiovascular.
+
+```{r obesosCEve, include=TRUE, echo=FALSE}
+obesoCvasculares <- c(dataset[which(dataset$OBES == 1), "Evento"])    #arreglo de dataset
+
+library(plotrix)
+obesos <- barplot(prop.table(table(obesoCvasculares)), col=c("blue","red"),names.arg=c("Obesos Sin Eventos", "Obesos Con Eventos"), legend.text=c("Sin Eventos","Con Eventos"), ylim=c(0,1.0), main="Obesos c/s Eventos")
+
+CantidadDeObesos <-sum(dataset$OBES==1)
+CantidadDeNoObesos <- sum(dataset$OBES==0)
+cbind(CantidadDeObesos,CantidadDeNoObesos)
+
+```
+
+
+### Obesos Diabéticos Con Eventos {- .unnumbered}
+En este gráfico, a partir de los obesos que sufrieron un evento se muestra cuantos de estos son diabéticos.
+
+```{r ObesosYDiabeticos, include=TRUE, echo=FALSE}
+DbtYObes <- c(dataset[which(dataset$OBES == 1, dataset$DBT == 1, dataset$Evento == 1), "DBT"])
+library(plotrix)
+barplot(prop.table(table(DbtYObes)), col=c("Red","Orange"),names.arg=c("No Diabéticos Con Eventos", "Diabéticos Con Eventos"), legend.text=c("Obesos No Diabéticos Con Eventos","Obesos Diabéticos Con Eventos"), ylim=c(0,1.0), main="Obesos Diabéticos Con Eventos")
+
+CantidadDeObesos <-sum(dataset$OBES==1)
+CantidadDeObesosConDiabetes <- sum(dataset$OBES==1 & dataset$DBT==1)
+cbind(CantidadDeObesos,CantidadDeObesosConDiabetes)
+
+```
+
+
+## Eventos Analizados Por Revascularización, Cantidad De Episodios & Repetición Del Dolor{- .unnumbered}
+En este gráfico podemos ver el porcentaje de las personas que tuvieron eventos y que también sufrieron de episodios previos con repeticiones de dolores y que fueron re vascularizados.
+
+```{r graficoRegCantE, include=TRUE, echo=FALSE}
+revCantEpMDEP <- c(dataset[which(dataset$CantE==1,dataset$SCApHR==1,dataset$MDEP==1),"Evento"])
+revCantEpMDEPsum <- round(sum(revCantEpMDEP) / 547 * 100)
+revCantEpMDEPsin <- round(100 - revCantEpMDEPsum)
+pie3D(c(revCantEpMDEPsin,revCantEpMDEPsum),radius = 0.9,main = "", labels = c(paste(revCantEpMDEPsin,"%"),paste(revCantEpMDEPsum,"%")),
+                                  col = c("purple","yellow"),labelcex = 1.20, explode = 0.20, theta = 1, mar = c(5,5,5,5))
+legend(0,1.1,c("Eventos Totales","Revasc+MDEP+CantE"),fill = c("purple","yellow"))
+```
+
+## Dolores {.tabset .tabset-fade .tabset-pills .uno}
+En los siguientes dos gráficos, se ven representados el total de dolores y de que tipo son estos, y además en el segundo grafico se tomaron los dolores de personas que hayan sufrido algún evento.
+
+### Dolores Totales {- .uno}
+
+```{r grafDoloresTot, include= TRUE, echo= FALSE}
+library(ggplot2)
+value <- c(sum(dataset$CD=="-1"),sum(dataset$CD=="0"),sum(dataset$CD=="1"))
+
+group <- c(paste("Punzada - ",value[1]),paste("Ácido- ",value[2]),
+           paste("Opresivo - ",value[3])) 
+
+data <- data.frame(group,value)
+library(treemap)
+treemap(data,
+            index="group",
+            palette = "PiYG",
+            title = "Tipos de Dolores",
+            vSize="value",
+            type="index",
+            border.lwds = c(2,2)
+            )
+
+```
+
+### Dolores Solo Con Personas Con Eventos Card {- .uno}
+
+```{r grafDoloresConEv, include= TRUE, echo= FALSE}
+datasetDeEvPost <- dataset[dataset$Evento==1,]
+library(ggplot2)
+value <- c(sum(datasetDeEvPost$CD=="-1"),sum(datasetDeEvPost$CD=="0"),sum(datasetDeEvPost$CD=="1"))
+
+group <- c(paste("Punzada - ",value[1]),paste("Ácido- ",value[2]),
+           paste("Opresivo - ",value[3])) 
+
+data <- data.frame(group,value)
+library(treemap)
+treemap(data,
+            index="group",
+            palette = "PiYG",
+            title = "Tipos de Dolores",
+            vSize="value",
+            type="index",
+            border.lwds = c(2,2)
+            )
+```
+
+## Tabaquismo e Hipertensión
+
+En este gráfico, lo que se muestra es la relación entre la cantidad de personas que sufrieron un Evento, fuman tabaco y son Hipertensas.
+En cada burbuja se muestra la cantidad de personas que sufren tal característica y si se cruzan, muestra las personas que tienen ambos rasgos.
+
+
+```{r grafDeVenn1, include= FALSE, echo= FALSE}
+library(VennDiagram)
+Tbq <- sum(dataset$TBQ==1 )
+Hta <-sum(dataset$HTA==1)
+Eventoos <- sum(dataset$Evento==1)
+TbqHta <- sum(dataset$TBQ==1 & dataset$HTA==1)
+TbqEven <- sum(dataset$TBQ==1 & dataset$Evento==1)
+HtaEven <- sum(dataset$TBQ==1 & dataset$Evento==1)
+TbqEvenHta <- sum(dataset$TBQ==1 & dataset$HTA==1 & dataset$Evento==1)
+
+
+# grid.newpage()
+
+ venn.plot <- draw.triple.venn(area1 = Tbq, area2 = Hta, area3 = Eventoos, n12 = TbqHta , n23 = HtaEven, n13 = TbqEven, 
+    n123 = TbqEvenHta, category = c("Tabaquismo", "Hipertensión", "Eventos"), lty = "blank", 
+    fill = c("skyblue", "pink1", "mediumorchid"), scaled = TRUE, cex = 0.75, fontface = 22, cat.cex = 0.75)
+ 
+```
+```{r grafDeVenn2, include= TRUE, echo= FALSE}
+ grid.draw(venn.plot);
+
+```
+
+## Anginosos VS Múltiples Dolores {- .unnumbered}
+En el siguiente gráfico se busca mostrar cuantos pacientes que sufrieron de un Evento, presentan Síndrome Anginoso y cuantos presentan Múltiples Dolores.
+```{r angiVSMultDol, include = TRUE, echo=FALSE}
+dataEySmeA <- dataset[which(dataset$Evento == 1 & dataset$SmeA == 1) , ]
+dataEUDCante <- dataset[which(dataset$Evento == 1 & dataset$UD > 1 & dataset$CantE == 1 ) , ]
+
+dataEySmeALugares <- c(dataset[which(dataset$Evento == 1 & dataset$SmeA == 1) , "Evento" ])
+dataEySmeALugaresSum <- round(sum(dataEySmeALugares))
+
+dataEUDCanteLug <- c(dataset[which(dataset$Evento == 1 & dataset$UD > 1 & dataset$CantE == 1 ) , "Evento"])
+dataEUDCanteLugSum <- round (sum(dataEUDCanteLug))
+
+
+barplot(c(dataEySmeALugaresSum , dataEUDCanteLugSum) ,
+        xlab="",main="Eventos Con Síntomas Anginosos \n vs Eventos Con Múltiples Dolores",
+        col=rainbow(5), ylim = c(0 , 50))
+legend(1.22,45.0, c( "Eventos con Sme Anginoso" , "Eventos con más de 1 Dolor"), fill = c(rainbow(5)))
+
+```
+
+
+
+
+
+
+
+
+
