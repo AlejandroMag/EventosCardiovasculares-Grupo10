@@ -191,7 +191,25 @@ cbind(CantidadDeObesos,CantidadDeNoObesos)
 
 ```
 
+### Diabetes {- .unnumbered}
+En este gráfico se puede ver el porcentaje Diabeticos que sufrieron algún evento cardiovascular 
+```{r Diabeticos , include= TRUE , echo= FALSE}
+diabeticosConEventos <- c(dataset[which(dataset$DBT == 1), "Evento"])
+diabeticosSinEventos <- c(dataset[which(dataset$DBT == 0), "Evento"])
 
+library(plotrix)
+
+barplot(prop.table(table(diabeticosConEventos)), col=c("DarkGreen","DarkRed"),names.arg=c(" Diabéticos sin Eventos", "Diabéticos Con Eventos"),
+        legend.text=c("Diabeticos sin Eventos"," Diabéticos Con Eventos"),
+        ylim=c(0,1.0), main=" Diabéticos C/S Eventos")
+
+cantidadaDBT <- sum(dataset$DBT == 1)
+cantidadDBTsinEventos <- sum(dataset$DBT == 1 & dataset$Evento == 0)
+cantidadDBTconEventos <- sum(dataset$DBT == 1 & dataset$Evento == 1)
+
+cbind(cantidadaDBT , cantidadDBTsinEventos , cantidadDBTconEventos)
+
+```
 ### Obesos Diabéticos Con Eventos {- .unnumbered}
 En este gráfico, a partir de los obesos que sufrieron un evento se muestra cuantos de estos son diabéticos.
 
